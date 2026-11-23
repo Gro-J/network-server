@@ -1,1 +1,15 @@
-.vscode
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Editor settings
+.vscode/
+
+# macOS
+.DS_Store
