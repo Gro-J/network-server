@@ -57,8 +57,13 @@ class StockServer:
         [STEP 1] 수량 문자열을 int 로 바꿉니다. 1 이상의 정수가 아니면 ValueError.
           "20" → 20,  "0" / "-3" / "abc" / "2.5" → ValueError("수량은 1 이상의 정수")
         """
-        # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-        raise NotImplementedError("STEP 1: parse_qty")
+        try:
+            qty = int(text)
+        except ValueError:
+            raise ValueError("수량은 1 이상의 정수여야 합니다")
+        if qty < 1:
+            raise ValueError("수량은 1 이상의 정수여야 합니다")
+        return qty
 
     def warn(self, qty: int) -> str:
         """재고가 LOW_STOCK 이하이면 경고 문구를 돌려줍니다. (완성되어 있음)"""
@@ -84,8 +89,60 @@ class StockServer:
           ★ 인자 개수가 틀리면 "ERR 형식: IN 상품코드 수량" 처럼 사용법을 알려 주세요.
           ★ parse_qty 의 ValueError 는 잡아서 "ERR " + 메시지 로 응답합니다.
         """
-        # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-        return "ERR 아직 구현되지 않았습니다"  # TODO: STEP 2
+        parts = line.split()
+        if not parts:
+            return "ERR 빈 요청"
+        cmd = parts[0].upper()
+
+        if cmd == "STOCK":
+            if len(parts) != 2:
+                return "ERR 형식: STOCK 상품코드"
+            code = parts[1].upper()
+            if code not in self.inventory:
+                return f"ERR 없는 상품: {code}"
+            name, qty = self.inventory[code]
+            return f"OK {code} {name} {qty}" + self.warn(qty)
+
+        if cmd == "IN":
+            if len(parts) != 3:
+                return "ERR 형식: IN 상품코드 수량"
+            code = parts[1].upper()
+            if code not in self.inventory:
+                return f"ERR 없는 상품: {code}"
+            try:
+                qty = self.parse_qty(parts[2])
+            except ValueError as e:
+                return "ERR " + str(e)
+            name, cur = self.inventory[code]
+            new = cur + qty
+            self.inventory[code][1] = new
+            return f"OK {code} {cur} -> {new}"
+
+        if cmd == "OUT":
+            if len(parts) != 3:
+                return "ERR 형식: OUT 상품코드 수량"
+            code = parts[1].upper()
+            if code not in self.inventory:
+                return f"ERR 없는 상품: {code}"
+            try:
+                qty = self.parse_qty(parts[2])
+            except ValueError as e:
+                return "ERR " + str(e)
+            name, cur = self.inventory[code]
+            if qty > cur:
+                return f"ERR 재고 부족: {code} 현재 {cur}, 요청 {qty}"
+            new = cur - qty
+            self.inventory[code][1] = new
+            return f"OK {code} {cur} -> {new}" + self.warn(new)
+
+        if cmd == "LIST":
+            items = sorted(self.inventory.items())
+            return "OK " + ", ".join(f"{code}={info[1]}" for code, info in items)
+
+        if cmd == "QUIT":
+            return "OK BYE"
+
+        return f"ERR 알 수 없는 명령: {cmd}"
 
     # ---------------------------------------------------------------
     # 네트워크 부분
@@ -103,8 +160,16 @@ class StockServer:
         """
         print(f"[접속] 단말기 {addr[0]}:{addr[1]}")
         with conn:
-            # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-            raise NotImplementedError("STEP 3: read_line → handle_command → send_line 반복")
+            reader = LineReader(conn)
+            while True:
+                line = reader.read_line()
+                if line is None:
+                    break
+                reply = self.handle_command(line)
+                print(f"[{time.strftime('%H:%M:%S')}] {addr[0]}:{addr[1]}  {line}  →  {reply}")
+                send_line(conn, reply)
+                if reply == "OK BYE":
+                    break
         print(f"[종료] 단말기 {addr[0]}:{addr[1]}")
 
     def serve_forever(self) -> None:
@@ -112,8 +177,14 @@ class StockServer:
         [STEP 4] 서버 시작: socket → SO_REUSEADDR → bind → listen → accept 반복
           (2교시 Echo 서버와 같은 구조. 한 번에 단말기 1대씩 처리)
         """
-        # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-        raise NotImplementedError("STEP 4: 서버 소켓 준비와 accept 반복")
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((self.host, self.port))
+            s.listen()
+            print(f"재고 서버 시작 {self.host}:{self.port}")
+            while True:
+                conn, addr = s.accept()
+                self.handle_client(conn, addr)
 
 
 if __name__ == "__main__":

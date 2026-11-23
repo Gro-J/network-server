@@ -37,8 +37,13 @@ def build_request(host: str, path: str) -> bytes:
       - 줄바꿈은 \\r\\n, 마지막에 빈 줄(\\r\\n) 필수
       - 헤더: Host, Connection: close
     """
-    # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 1: 요청 문자열을 만들고 encode 하세요")
+    request = (
+        f"GET {path} HTTP/1.1\r\n"
+        f"Host: {host}\r\n"
+        f"Connection: close\r\n"
+        f"\r\n"
+    )
+    return request.encode()
 
 
 def read_status_line(sock: socket.socket) -> str:
@@ -56,8 +61,14 @@ def read_status_line(sock: socket.socket) -> str:
             buffer += data
         첫 줄 = buffer.split(b"\\r\\n", 1)[0]
     """
-    # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 2: 첫 \\r\\n 까지 받아서 첫 줄을 return")
+    buffer = b""
+    while b"\r\n" not in buffer:
+        data = sock.recv(1024)
+        if not data:
+            raise ConnectionError("서버가 응답 없이 연결을 끊었습니다")
+        buffer += data
+    first_line = buffer.split(b"\r\n", 1)[0]
+    return first_line.decode(errors="replace")
 
 
 def parse_status(status_line: str) -> int:
@@ -66,8 +77,10 @@ def parse_status(status_line: str) -> int:
       힌트: split(" ", 2) → ["HTTP/1.1", "404", "Not Found"]
       형식이 이상하면 ValueError 를 발생시키세요.
     """
-    # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 3: 상태 코드 추출")
+    parts = status_line.split(" ", 2)
+    if len(parts) < 2:
+        raise ValueError(f"상태 줄 형식이 올바르지 않습니다: {status_line!r}")
+    return int(parts[1])
 
 
 def judge(code: int | None) -> str:
@@ -75,8 +88,11 @@ def judge(code: int | None) -> str:
     [STEP 4] 상태 코드로 판정합니다.  None(응답 못 받음) → "DOWN"
       200~399 → "UP",  400~599 → "WARN",  그 외 → "WARN"
     """
-    # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 4: 판정 규칙 구현")
+    if code is None:
+        return "DOWN"
+    if 200 <= code <= 399:
+        return "UP"
+    return "WARN"
 
 
 def check(host: str, port: int, path: str = "/") -> dict:
@@ -105,8 +121,28 @@ def check(host: str, port: int, path: str = "/") -> dict:
     """
     result = {"target": f"{host}:{port}{path}", "ip": "-", "code": None, "ms": None, "state": "DOWN", "note": ""}
     start = time.perf_counter()
-    # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 5: 위 순서대로 점검하고 result 를 채우세요")
+    try:
+        ip = socket.gethostbyname(host)
+        result["ip"] = ip
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(TIMEOUT)
+            s.connect((ip, port))
+            s.sendall(build_request(host, path))
+            line = read_status_line(s)
+        code = parse_status(line)
+        result["code"] = code
+        result["state"] = judge(code)
+    except socket.gaierror:
+        result["note"] = "DNS 실패"
+    except ConnectionRefusedError:
+        result["note"] = "연결 거부 (서버 꺼짐/포트 닫힘)"
+    except socket.timeout:
+        result["note"] = "시간 초과"
+    except (OSError, ValueError) as e:
+        result["note"] = "오류: " + str(e)
+    finally:
+        result["ms"] = (time.perf_counter() - start) * 1000
+    return result
 
 
 def print_report(results: list[dict]) -> None:
