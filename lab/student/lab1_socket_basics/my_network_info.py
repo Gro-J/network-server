@@ -18,7 +18,7 @@ def get_hostname() -> str:
     힌트: socket.gethostname()
     """
     # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 1")
+    return socket.gethostname()
 
 
 def get_local_ip() -> str:
@@ -38,7 +38,12 @@ def get_local_ip() -> str:
     인터넷이 없으면 OSError 가 나므로 그때는 "127.0.0.1" 을 return 하세요.
     """
     # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 2")
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
 
 
 def is_private_ip(ip: str) -> bool:
@@ -50,8 +55,8 @@ def is_private_ip(ip: str) -> bool:
     힌트: a, b, *_ = map(int, ip.split("."))
     """
     # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 3")
-
+    a, b, *_ = map(int, ip.split("."))
+    return (a == 10) or (a == 172 and 16 <= b <= 31) or (a == 192 and b == 168)
 
 def main() -> None:
     try:

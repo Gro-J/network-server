@@ -41,8 +41,10 @@ class EchoServer:
           1-3. bind((self.host, self.port))  → 이 IP:포트를 내가 쓰겠다고 OS에 등록
           1-4. listen()                       → 접속 대기 상태(LISTENING) 시작
         """
-        # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-        raise NotImplementedError("STEP 1: 서버 소켓 생성 → bind → listen")
+        self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_sock.bind((self.host, self.port))
+        self.server_sock.listen()
         print(f"[서버] {self.host}:{self.port} 에서 대기 중 (LISTENING)  Ctrl+C 로 종료")
 
     def handle_client(self, conn: socket.socket, addr: tuple) -> None:
@@ -57,8 +59,13 @@ class EchoServer:
 
           마지막에 conn.close() 를 꼭 호출합니다. (with conn: 사용 가능)
         """
-        # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-        raise NotImplementedError("STEP 3: recv → 출력 → sendall 반복")
+        with conn:
+            while True:
+                data = conn.recv(BUFFER_SIZE)
+                if not data:
+                    break
+                print(f"[수신] {addr[0]}:{addr[1]} → {data.decode('utf-8', errors='replace')!r}")
+                conn.sendall(data)
         print(f"[종료] {addr[0]}:{addr[1]} 연결 끊김")
 
     def serve_forever(self) -> None:
@@ -74,8 +81,10 @@ class EchoServer:
         """
         self.start()
         try:
-            # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-            raise NotImplementedError("STEP 2: accept() 반복")
+            while True:
+                conn, addr = self.server_sock.accept()
+                print(f"[접속] {addr[0]}:{addr[1]}  (새 소켓으로 대화 시작)")
+                self.handle_client(conn, addr)
         except KeyboardInterrupt:
             print("\n[서버] 종료합니다")
         finally:
