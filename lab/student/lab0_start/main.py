@@ -19,6 +19,7 @@
 """
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
+from datetime import datetime
 
 # FastAPI 앱 객체: 이 객체에 경로들을 등록합니다. uvicorn 은 이 객체를 실행합니다.
 app = FastAPI(title="마이 메모 앱")
@@ -26,6 +27,7 @@ app = FastAPI(title="마이 메모 앱")
 # templates 폴더의 HTML 파일을 Jinja2 문법으로 채워서 돌려주는 도우미
 templates = Jinja2Templates(directory="templates")
 
+today = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # ---------------------------------------------------------------
 # [STEP 1] JSON 을 돌려주는 API
@@ -36,8 +38,7 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/about")
 async def about():
     # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 1: message 가 들어 있는 dict 를 return 하세요")
-
+    return {"message": "이것은 마이 메모 앱의 소개 페이지입니다."}
 
 # ---------------------------------------------------------------
 # [STEP 2] HTML 페이지를 돌려주는 경로
@@ -50,7 +51,7 @@ async def about():
 @app.get("/")
 async def read_root(request: Request):
     # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 2: TemplateResponse 로 home.html 을 return 하세요")
+    return templates.TemplateResponse(request, "home.html", {"app_name": "마이 메모 앱", "date": today})
 
 
 # ---------------------------------------------------------------
@@ -64,4 +65,8 @@ async def read_root(request: Request):
 @app.get("/hello/{name}")
 async def hello(name: str, age: int | None = None):
     # ===== TODO: 이 부분을 완성하세요 (위 설명의 순서를 따라가세요) =====
-    raise NotImplementedError("STEP 3: greeting 과 age 를 담은 dict 를 return 하세요")
+    return {"greeting": f"안녕하세요, {name}님!", "age": age}
+
+@app.get("/health")
+async def health():
+    return {"status": "okay"}
